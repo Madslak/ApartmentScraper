@@ -50,6 +50,18 @@ if page == "⚙️ Config":
         rooms_hard = st.toggle("Hard limit", value=config["rooms_hard"], key="rooms_hard")
 
     st.divider()
+    st.subheader("Room Multipliers")
+    st.caption("3+ rooms is the baseline (1.0). Fewer rooms score proportionally lower.")
+
+    room_mults = config.get("room_multipliers", {"1": 0.80, "2": 0.90, "3+": 1.00})
+    rm_cols = st.columns(3)
+    new_room_multipliers = {}
+    for col, key in zip(rm_cols, ["1", "2", "3+"]):
+        with col:
+            label = f"{key} room{'s' if key != '1' else ''}"
+            new_room_multipliers[key] = st.slider(label, 0.0, 1.0, float(room_mults.get(key, 1.0)), step=0.01, key=f"rm_{key}")
+
+    st.divider()
     st.subheader("Neighborhood Multipliers")
     st.caption("Higher multiplier = stronger preference. Nørrebro = 1.0 is the baseline.")
 
@@ -72,6 +84,7 @@ if page == "⚙️ Config":
             "size_hard": size_hard,
             "rooms_min": int(rooms_min),
             "rooms_hard": rooms_hard,
+            "room_multipliers": new_room_multipliers,
             "neighborhood_multipliers": new_multipliers,
         }
         save_config(new_config)

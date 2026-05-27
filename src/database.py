@@ -20,6 +20,11 @@ DEFAULT_CONFIG = {
     "size_hard": False,
     "rooms_min": 2,
     "rooms_hard": True,
+    "room_multipliers": {
+        "1": 0.80,
+        "2": 0.90,
+        "3+": 1.00,
+    },
     "neighborhood_multipliers": {
         "Nørrebro": 1.00,
         "Frederiksberg": 0.92,

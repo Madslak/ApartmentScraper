@@ -48,7 +48,7 @@ def normalize_neighborhood(raw: str) -> str:
 def score_listing(listing: dict, config: dict) -> tuple[float, bool]:
     """Compute a listing's score and whether it is a soft-limit match.
 
-    Score formula: (size_m2 / price_millions) * neighborhood_multiplier
+    Score formula: (size_m2 / price_millions) * neighborhood_multiplier * room_multiplier
     Returns (score, is_soft_match).
     """
     price = listing.get("price", 0) or 0
@@ -59,9 +59,14 @@ def score_listing(listing: dict, config: dict) -> tuple[float, bool]:
     if price <= 0 or size <= 0:
         return 0.0, False
 
-    multipliers = config.get("neighborhood_multipliers", {})
-    nb_multiplier = multipliers.get(neighborhood, multipliers.get("Other", 0.50))
-    base_score = (size / (price / 1_000_000)) * nb_multiplier
+    nb_multipliers = config.get("neighborhood_multipliers", {})
+    nb_multiplier = nb_multipliers.get(neighborhood, nb_multipliers.get("Other", 0.50))
+
+    room_mults = config.get("room_multipliers", {})
+    room_key = "3+" if rooms >= 3 else str(rooms)
+    room_multiplier = room_mults.get(room_key, 1.0)
+
+    base_score = (size / (price / 1_000_000)) * nb_multiplier * room_multiplier
 
     is_soft_match = False
     price_max = config["price_max"]
