@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.apartmentscraper</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/madsaslak/.local/bin/uv</string>
+        <string>run</string>
+        <string>pipeline.py</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/madsaslak/Documents/Projects/ApartmentScraper</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/opt/homebrew/opt/python@3.11/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/madsaslak</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/madsaslak/Documents/Projects/ApartmentScraper/scraper.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/madsaslak/Documents/Projects/ApartmentScraper/scraper.error.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
