@@ -4,7 +4,7 @@ Triggered daily at 09:00 by launchd (see launchd/com.apartmentscraper.plist).
 Scrapes Boligsiden.dk, scores and filters listings against saved config,
 persists results to SQLite, and sends unseen listings via Telegram.
 
-Run manually: `uv run pipeline.py`
+Run manually: `uv run src/pipeline.py`
 """
 
 import sys

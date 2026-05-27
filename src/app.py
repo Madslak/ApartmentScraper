@@ -1,3 +1,8 @@
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+
 import streamlit as st
 import pandas as pd
 from database import init_db, get_config, save_config, get_all_listings

@@ -9,7 +9,7 @@
     <array>
         <string>/Users/madsaslak/.local/bin/uv</string>
         <string>run</string>
-        <string>pipeline.py</string>
+        <string>src/pipeline.py</string>
     </array>
 
     <key>StartCalendarInterval</key>
