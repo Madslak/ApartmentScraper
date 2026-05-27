@@ -20,11 +20,21 @@ MAX_LISTINGS_PER_MESSAGE = 10
 
 def format_listing(listing: dict, rank: int) -> str:
     """Format a single listing dict as a Telegram Markdown message."""
-    soft = " *(leniency match)*" if listing["is_soft_match"] else ""
+    soft = " _(leniency match)_" if listing.get("is_soft_match") else ""
     price_fmt = f"{listing['price']:,}".replace(",", ".")
+
+    if listing.get("is_price_drop") and listing.get("price_previous"):
+        old_fmt = f"{listing['price_previous']:,}".replace(",", ".")
+        drop_pct = (listing["price_previous"] - listing["price"]) / listing["price_previous"] * 100
+        price_line = f"Pris: {price_fmt} kr _(var {old_fmt} kr, -{drop_pct:.1f}%)_"
+        header = f"*PRISFALD — {listing['title']}*{soft}"
+    else:
+        price_line = f"Pris: {price_fmt} kr"
+        header = f"*#{rank} — {listing['title']}*{soft}"
+
     return (
-        f"*#{rank} — {listing['title']}*{soft}\n"
-        f"Pris: {price_fmt} kr\n"
+        f"{header}\n"
+        f"{price_line}\n"
         f"Storrelse: {listing['size']} m²  |  {listing['rooms']} rum\n"
         f"Omrade: {listing['neighborhood']}\n"
         f"Score: {listing['score']:.2f}\n"

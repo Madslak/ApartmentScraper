@@ -38,6 +38,9 @@ def get_connection() -> sqlite3.Connection:
     return sqlite3.connect(DB_PATH)
 
 
+PRICE_DROP_THRESHOLD = 0.02  # re-notify when price falls by more than this fraction
+
+
 def init_db() -> None:
     """Create tables and seed default config if the database is new."""
     with get_connection() as conn:
@@ -53,11 +56,22 @@ def init_db() -> None:
                 address TEXT,
                 score REAL,
                 is_soft_match INTEGER DEFAULT 0,
+                is_price_drop INTEGER DEFAULT 0,
+                price_previous INTEGER,
                 notified INTEGER DEFAULT 0,
                 first_seen TEXT,
                 last_seen TEXT
             )
         """)
+        # Migrate existing databases that predate these columns
+        for col, definition in [
+            ("is_price_drop", "INTEGER DEFAULT 0"),
+            ("price_previous", "INTEGER"),
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE listings ADD COLUMN {col} {definition}")
+            except Exception:
+                pass
         conn.execute("""
             CREATE TABLE IF NOT EXISTS config (
                 key TEXT PRIMARY KEY,
@@ -91,23 +105,43 @@ def save_config(config: dict) -> None:
 
 
 def upsert_listing(listing: dict) -> None:
-    """Insert a new listing or update price/score if it already exists."""
+    """Insert a new listing or update it if it already exists.
+
+    If the price has dropped by more than PRICE_DROP_THRESHOLD since last seen,
+    the listing is re-queued for notification with is_price_drop=1.
+    """
     now = datetime.now().isoformat()
     with get_connection() as conn:
-        existing = conn.execute(
-            "SELECT id FROM listings WHERE id = ?", (listing["id"],)
+        row = conn.execute(
+            "SELECT price FROM listings WHERE id = ?", (listing["id"],)
         ).fetchone()
-        if existing:
+        if row:
+            old_price = row[0]
+            new_price = listing["price"]
+            drop = (old_price - new_price) / old_price if old_price else 0
+            is_price_drop = drop > PRICE_DROP_THRESHOLD
             conn.execute(
-                "UPDATE listings SET last_seen=?, price=?, score=?, is_soft_match=? WHERE id=?",
-                (now, listing["price"], listing["score"], listing["is_soft_match"], listing["id"]),
+                """UPDATE listings
+                   SET last_seen=?, price=?, score=?, is_soft_match=?,
+                       is_price_drop=?,
+                       price_previous=CASE WHEN ? THEN ? ELSE price_previous END,
+                       notified=CASE WHEN ? THEN 0 ELSE notified END
+                   WHERE id=?""",
+                (
+                    now, new_price, listing["score"], listing["is_soft_match"],
+                    int(is_price_drop),
+                    is_price_drop, old_price,
+                    is_price_drop,
+                    listing["id"],
+                ),
             )
         else:
             conn.execute(
                 """INSERT INTO listings
                    (id, url, title, price, size, rooms, neighborhood, address,
-                    score, is_soft_match, notified, first_seen, last_seen)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,0,?,?)""",
+                    score, is_soft_match, is_price_drop, price_previous,
+                    notified, first_seen, last_seen)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,0,NULL,0,?,?)""",
                 (
                     listing["id"], listing["url"], listing["title"],
                     listing["price"], listing["size"], listing["rooms"],
@@ -124,11 +158,12 @@ def get_unsent_listings() -> list[dict]:
     with get_connection() as conn:
         rows = conn.execute(
             """SELECT id, url, title, price, size, rooms, neighborhood, address,
-                      score, is_soft_match
+                      score, is_soft_match, is_price_drop, price_previous
                FROM listings WHERE notified=0 ORDER BY score DESC"""
         ).fetchall()
     keys = ["id", "url", "title", "price", "size", "rooms",
-            "neighborhood", "address", "score", "is_soft_match"]
+            "neighborhood", "address", "score", "is_soft_match",
+            "is_price_drop", "price_previous"]
     return [dict(zip(keys, row)) for row in rows]
 
 
