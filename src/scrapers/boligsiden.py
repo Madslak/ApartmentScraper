@@ -11,46 +11,11 @@ import asyncio
 import json
 import re
 
-from dotenv import load_dotenv
 from playwright.async_api import async_playwright
 
-load_dotenv()
+from .base import CONCURRENCY, HEADERS, NEIGHBORHOOD_ZIPS, dismiss_consent
 
 BASE_URL = "https://www.boligsiden.dk/postnummer/{zip}/tilsalg/ejerlejlighed?areaMin=50&priceMax=5500000"
-
-NEIGHBORHOOD_ZIPS: dict[str, list[int]] = {
-    "Nørrebro":      [2200],
-    "Frederiksberg": [2000],
-    "Indre By":      [1050, 1100, 1150, 1200, 1250, 1300, 1350, 1400, 1450],
-    "Vesterbro":     [1500, 1550, 1600, 1620, 1650, 1700, 1750, 1800],
-    "Østerbro":      [2100],
-    "Amager":        [2300, 2450],
-    "Valby":         [2500],
-}
-
-HEADERS = {
-    "Accept-Language": "da-DK,da;q=0.9",
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    ),
-}
-
-CONCURRENCY = 4
-
-
-async def _dismiss_consent(page) -> None:
-    """Click whichever cookie consent button is present, if any."""
-    for text in ["Afvis og luk", "Accepter og luk", "Accepter alle"]:
-        try:
-            btn = page.get_by_text(text, exact=True)
-            if await btn.count() > 0:
-                await btn.first.click()
-                await page.wait_for_timeout(1000)
-                return
-        except Exception:
-            continue
 
 
 def _parse_card_text(text: str, href: str, neighborhood: str) -> dict | None:
@@ -95,6 +60,7 @@ def _parse_card_text(text: str, href: str, neighborhood: str) -> dict | None:
 
     return {
         "id": listing_id,
+        "source": "boligsiden",
         "url": f"https://www.boligsiden.dk{href}",
         "title": address,
         "price": price,
@@ -112,7 +78,7 @@ async def _scrape_zip(page, zip_code: int, neighborhood: str, consent_dismissed:
     await page.wait_for_timeout(1500)
 
     if not consent_dismissed:
-        await _dismiss_consent(page)
+        await dismiss_consent(page)
         await page.wait_for_timeout(500)
         consent_dismissed.append(True)
 
@@ -142,8 +108,8 @@ async def _scrape_zip_new_page(browser, zip_code: int, neighborhood: str) -> lis
         await page.close()
 
 
-async def _scrape_all() -> list[dict]:
-    """Scrape all configured neighborhoods in parallel and deduplicate by listing ID."""
+async def scrape_with_browser(browser) -> list[dict]:
+    """Scrape all configured neighborhoods using the given browser. Deduplicates by listing ID."""
     tasks_input = [
         (nb, z)
         for nb, zips in NEIGHBORHOOD_ZIPS.items()
@@ -151,24 +117,20 @@ async def _scrape_all() -> list[dict]:
     ]
     all_listings: list[dict] = []
     seen_ids: set[str] = set()
+    semaphore = asyncio.Semaphore(CONCURRENCY)
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        semaphore = asyncio.Semaphore(CONCURRENCY)
+    async def bounded(nb: str, z: int) -> list[dict]:
+        async with semaphore:
+            try:
+                results = await _scrape_zip_new_page(browser, z, nb)
+                if results:
+                    print(f"  [boligsiden] {nb} ({z}): {len(results)} listings")
+                return results
+            except Exception as e:
+                print(f"  [boligsiden] {nb} ({z}): error — {e}")
+                return []
 
-        async def bounded(nb: str, z: int) -> list[dict]:
-            async with semaphore:
-                try:
-                    results = await _scrape_zip_new_page(browser, z, nb)
-                    if results:
-                        print(f"  {nb} ({z}): {len(results)} listings")
-                    return results
-                except Exception as e:
-                    print(f"  {nb} ({z}): error — {e}")
-                    return []
-
-        batches = await asyncio.gather(*[bounded(nb, z) for nb, z in tasks_input])
-        await browser.close()
+    batches = await asyncio.gather(*[bounded(nb, z) for nb, z in tasks_input])
 
     for batch in batches:
         for listing in batch:
@@ -180,8 +142,14 @@ async def _scrape_all() -> list[dict]:
 
 
 def scrape_boligsiden() -> list[dict]:
-    """Entry point: scrape Boligsiden.dk and return a flat list of listing dicts."""
-    return asyncio.run(_scrape_all())
+    """Entry point: scrape Boligsiden.dk standalone (owns its own browser)."""
+    async def _run():
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            results = await scrape_with_browser(browser)
+            await browser.close()
+            return results
+    return asyncio.run(_run())
 
 
 if __name__ == "__main__":

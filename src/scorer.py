@@ -63,8 +63,13 @@ def score_listing(listing: dict, config: dict) -> tuple[float, bool]:
     nb_multiplier = nb_multipliers.get(neighborhood, nb_multipliers.get("Other", 0.50))
 
     room_mults = config.get("room_multipliers", {})
-    room_key = "3+" if rooms >= 3 else str(rooms)
-    room_multiplier = room_mults.get(room_key, 1.0)
+    if rooms == 0:
+        # Unknown room count (e.g. Home.dk doesn't show it on cards)
+        # Use the 2-room multiplier as a neutral default
+        room_multiplier = room_mults.get("2", 0.90)
+    else:
+        room_key = "3+" if rooms >= 3 else str(rooms)
+        room_multiplier = room_mults.get(room_key, 1.0)
 
     base_score = (size / (price / 1_000_000)) * nb_multiplier * room_multiplier
 
@@ -101,7 +106,7 @@ def passes_hard_filters(listing: dict, config: dict) -> bool:
     if size < size_floor:
         return False
 
-    if config["rooms_hard"] and rooms < config["rooms_min"]:
+    if config["rooms_hard"] and rooms > 0 and rooms < config["rooms_min"]:
         return False
 
     return True

@@ -94,7 +94,7 @@ if page == "⚙️ Config":
     st.subheader("Manual pipeline run")
     st.caption("Trigger a scrape right now instead of waiting for the scheduled run.")
     if st.button("▶️ Run pipeline now"):
-        with st.spinner("Scraping Boligsiden.dk..."):
+        with st.spinner("Scraping all sources..."):
             import subprocess, sys
             result = subprocess.run(
                 [sys.executable, "pipeline.py"],
@@ -126,10 +126,15 @@ else:
     show_soft = st.sidebar.toggle("Show soft-limit matches", value=True)
     nb_filter = st.sidebar.multiselect("Neighborhood", NEIGHBORHOODS, default=NEIGHBORHOODS)
 
+    all_sources = sorted(df["source"].unique().tolist()) if "source" in df.columns else []
+    source_filter = st.sidebar.multiselect("Source", all_sources, default=all_sources)
+
     if not show_soft:
         df = df[df["is_soft_match"] == 0]
     if nb_filter:
         df = df[df["neighborhood"].isin(nb_filter)]
+    if source_filter and "source" in df.columns:
+        df = df[df["source"].isin(source_filter)]
 
     st.metric("Listings shown", len(df))
 
@@ -138,7 +143,7 @@ else:
             return ["background-color: #fff3cd"] * len(row)
         return [""] * len(row)
 
-    display_cols = ["title", "price", "size", "rooms", "neighborhood", "score", "address", "first_seen"]
+    display_cols = ["source", "title", "price", "size", "rooms", "neighborhood", "score", "address", "first_seen"]
     df_display = df[display_cols].copy()
     df_display["price"] = df_display["price"].apply(lambda x: f"{int(x):,}".replace(",", ".") + " kr")
     df_display["score"] = df_display["score"].apply(lambda x: f"{x:.2f}")
@@ -165,6 +170,14 @@ else:
             st.metric("Neighborhood", row["neighborhood"])
             soft_label = "⚠️ Soft match (outside strict limits)" if row["is_soft_match"] else "✅ Within limits"
             st.info(soft_label)
+        source = row.get("source", "boligsiden")
         st.markdown(f"**Address:** {row['address']}")
-        st.markdown(f"**First seen:** {row['first_seen']}")
-        st.link_button("Open on Boligsiden.dk", row["url"])
+        st.markdown(f"**First seen:** {row['first_seen']}  |  **Source:** `{source}`")
+        site_label = {
+            "boligsiden": "Boligsiden.dk",
+            "nybolig": "Nybolig.dk",
+            "home": "Home.dk",
+            "edc": "EDC.dk",
+            "danbolig": "Danbolig.dk",
+        }.get(source, source)
+        st.link_button(f"Open on {site_label}", row["url"])

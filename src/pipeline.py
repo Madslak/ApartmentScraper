@@ -1,7 +1,7 @@
 """Scheduled pipeline entry point.
 
 Triggered daily at 09:00 by launchd (see launchd/com.apartmentscraper.plist).
-Scrapes Boligsiden.dk, scores and filters listings against saved config,
+Scrapes all configured sources, scores and filters listings against saved config,
 persists results to SQLite, and sends unseen listings via Telegram.
 
 Run manually: `uv run src/pipeline.py`
@@ -19,7 +19,7 @@ load_dotenv(Path(__file__).parent / ".env")
 from database import init_db, mark_notified, upsert_listing, get_unsent_listings
 from notifier import send_listings
 from scorer import score_and_filter
-from scraper import scrape_boligsiden
+from scrapers import scrape_all
 
 
 def run() -> None:
@@ -27,9 +27,9 @@ def run() -> None:
     print("=== Apartment Scout pipeline starting ===")
     init_db()
 
-    print("Scraping Boligsiden.dk...")
-    raw_listings = scrape_boligsiden()
-    print(f"  Found {len(raw_listings)} raw listings")
+    print("Scraping all sources...")
+    raw_listings = scrape_all()
+    print(f"  Found {len(raw_listings)} listings after dedup")
 
     print("Scoring and filtering...")
     scored = score_and_filter(raw_listings)
@@ -45,7 +45,7 @@ def run() -> None:
     send_listings(new_listings)
 
     if new_listings:
-        mark_notified([listing["id"] for listing in new_listings])
+        mark_notified([(listing["id"], listing["source"]) for listing in new_listings])
 
     print("=== Pipeline complete ===")
 
