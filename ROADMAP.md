@@ -35,15 +35,18 @@ Nybolig.dk itself. Not scrapeable. The Facebook group scraper (Phase 4) partiall
 Playwright. It does not bypass bot detection; CHEQ and Cloudflare block the underlying browser
 before any content is fetched.
 
-## Phase 3 — Telegram interactions (human in the loop)
+## ✅ Phase 3 — Telegram interactions (complete)
 
-- Inline buttons on each Telegram listing notification: **Save** / **Dismiss**
-- Clicking **Save** marks the listing as saved in the database
-- `/saved` command in Telegram shows all saved listings (with links)
-- Saved listings are tracked separately and never expire from the saved list
-- Build a contacter that drafts a personalised message to the seller/agent
-  - Use Claude (Sonnet) to write the outreach based on listing details
-  - Reply "send" in Telegram to trigger the contact, "skip" to discard
+- ✅ Inline buttons on each notification: **💾 Gem** / **❌ Afvis**
+- ✅ Clicking **Gem** marks listing as saved in the database (`saved=1`)
+- ✅ Clicking **Afvis** marks listing as dismissed (`dismissed=1`)
+- ✅ `/saved` command lists all saved listings with links
+- ✅ Saved listings tracked separately and never expire
+- ✅ Claude (Sonnet) drafts a personalized Danish outreach on Save
+  - Draft sent with **✉️ Brug udkast** / **⏭️ Spring over** inline buttons
+  - "Brug udkast" sends the text in a code block for easy copy-paste
+- New files: `src/bot.py` (polling bot), `src/contacter.py` (Claude draft)
+- Run bot: `uv run src/bot.py` (separate persistent process from the pipeline)
 
 ## Phase 4 — Facebook group scraper
 

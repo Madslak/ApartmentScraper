@@ -11,7 +11,7 @@ import asyncio
 import os
 
 from dotenv import load_dotenv
-from telegram import Bot
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 
 load_dotenv()
 
@@ -34,11 +34,11 @@ def format_listing(listing: dict, rank: int) -> str:
 
     return (
         f"{header}\n"
-        f"{price_line}\n"
-        f"Storrelse: {listing['size']} m²  |  {listing['rooms']} rum\n"
-        f"Omrade: {listing['neighborhood']}\n"
-        f"Score: {listing['score']:.2f}\n"
-        f"{listing['url']}"
+        f"💰 {price_line}\n"
+        f"📐 {listing['size']} m²  |  🛏 {listing['rooms']} rum\n"
+        f"📍 {listing['neighborhood']}\n"
+        f"⭐ Score: {listing['score']:.2f}\n"
+        f"🔗 {listing['url']}"
     )
 
 
@@ -59,10 +59,17 @@ async def _send(token: str, chat_id: str, listings: list[dict]) -> None:
     await bot.send_message(chat_id=chat_id, text=header, parse_mode="Markdown")
 
     for i, listing in enumerate(listings[:MAX_LISTINGS_PER_MESSAGE], start=1):
+        lid = listing["id"]
+        src = listing.get("source", "boligsiden")
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton("💾 Gem", callback_data=f"save|{lid}|{src}"),
+            InlineKeyboardButton("❌ Afvis", callback_data=f"dismiss|{lid}|{src}"),
+        ]])
         await bot.send_message(
             chat_id=chat_id,
             text=format_listing(listing, i),
             parse_mode="Markdown",
+            reply_markup=keyboard,
         )
 
 

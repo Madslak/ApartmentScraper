@@ -55,9 +55,21 @@ _NEW_LISTINGS_SCHEMA = """
         is_price_drop INTEGER DEFAULT 0,
         price_previous INTEGER,
         notified INTEGER DEFAULT 0,
+        saved INTEGER DEFAULT 0,
+        dismissed INTEGER DEFAULT 0,
         first_seen TEXT,
         last_seen TEXT,
         PRIMARY KEY (id, source)
+    )
+"""
+
+_OUTREACH_DRAFTS_SCHEMA = """
+    CREATE TABLE IF NOT EXISTS outreach_drafts (
+        listing_id TEXT NOT NULL,
+        listing_source TEXT NOT NULL,
+        draft TEXT NOT NULL,
+        created_at TEXT,
+        PRIMARY KEY (listing_id, listing_source)
     )
 """
 
@@ -75,6 +87,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     for col, definition in [
         ("is_price_drop", "INTEGER DEFAULT 0"),
         ("price_previous", "INTEGER"),
+        ("saved", "INTEGER DEFAULT 0"),
+        ("dismissed", "INTEGER DEFAULT 0"),
     ]:
         if col not in cols:
             conn.execute(f"ALTER TABLE listings ADD COLUMN {col} {definition}")
@@ -112,6 +126,7 @@ def init_db() -> None:
                 value TEXT
             )
         """)
+        conn.execute(_OUTREACH_DRAFTS_SCHEMA)
         for key, value in DEFAULT_CONFIG.items():
             conn.execute(
                 "INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)",
@@ -227,3 +242,72 @@ def get_all_listings() -> list[dict]:
     keys = ["id", "source", "url", "title", "price", "size", "rooms",
             "neighborhood", "address", "score", "is_soft_match", "first_seen", "last_seen"]
     return [dict(zip(keys, row)) for row in rows]
+
+
+def get_listing(listing_id: str, source: str) -> dict | None:
+    """Return a single listing by (id, source), or None if not found."""
+    with get_connection() as conn:
+        row = conn.execute(
+            """SELECT id, source, url, title, price, size, rooms, neighborhood, address,
+                      score, is_soft_match, is_price_drop, price_previous
+               FROM listings WHERE id=? AND source=?""",
+            (listing_id, source),
+        ).fetchone()
+    if not row:
+        return None
+    keys = ["id", "source", "url", "title", "price", "size", "rooms",
+            "neighborhood", "address", "score", "is_soft_match", "is_price_drop", "price_previous"]
+    return dict(zip(keys, row))
+
+
+def save_listing(listing_id: str, source: str) -> None:
+    """Mark a listing as saved by the user."""
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE listings SET saved=1 WHERE id=? AND source=?",
+            (listing_id, source),
+        )
+        conn.commit()
+
+
+def dismiss_listing(listing_id: str, source: str) -> None:
+    """Mark a listing as dismissed by the user."""
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE listings SET dismissed=1 WHERE id=? AND source=?",
+            (listing_id, source),
+        )
+        conn.commit()
+
+
+def get_saved_listings() -> list[dict]:
+    """Return all listings the user has saved, ordered by score descending."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            """SELECT id, source, url, title, price, size, rooms, neighborhood, score
+               FROM listings WHERE saved=1 ORDER BY score DESC"""
+        ).fetchall()
+    keys = ["id", "source", "url", "title", "price", "size", "rooms", "neighborhood", "score"]
+    return [dict(zip(keys, row)) for row in rows]
+
+
+def set_outreach_draft(listing_id: str, source: str, draft: str) -> None:
+    """Persist a Claude-generated outreach draft for a listing."""
+    now = datetime.now().isoformat()
+    with get_connection() as conn:
+        conn.execute(
+            """INSERT OR REPLACE INTO outreach_drafts (listing_id, listing_source, draft, created_at)
+               VALUES (?, ?, ?, ?)""",
+            (listing_id, source, draft, now),
+        )
+        conn.commit()
+
+
+def get_outreach_draft(listing_id: str, source: str) -> str | None:
+    """Return the stored outreach draft for a listing, or None."""
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT draft FROM outreach_drafts WHERE listing_id=? AND listing_source=?",
+            (listing_id, source),
+        ).fetchone()
+    return row[0] if row else None
