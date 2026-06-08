@@ -76,10 +76,17 @@ text-match for Copenhagen apartments, and dedup by post ID / timestamp.
 - Target broker accounts must be Business/Creator accounts (they almost certainly are)
 
 **POC success criteria:**
-1. Authenticate and obtain a long-lived access token
-2. Pull recent media for 2–3 known Copenhagen broker accounts via Business Discovery
-3. Filter posts by caption keywords / neighborhood (reuse `base.py` zip/neighborhood logic)
-4. Confirm we can detect *new* posts since last run (track seen post IDs)
+1. ✅ Authenticate with a Facebook-Login (`EAA`) token (long-lived deferred to production)
+2. ✅ Pull recent media for known Copenhagen brokers via Business Discovery
+   (`nybolig`, `home.dk`, `ivaneltoftnielsen` confirmed)
+3. ✅ Filter posts by caption keywords / neighborhood (reuses `base.py` neighborhood terms)
+4. ⏳ Detect *new* posts since last run (track seen post IDs) — next step
+
+**POC status (2026-06-08): validated.** `src/scrapers/instagram.py` +
+`docs/instagram-setup.md` added. Run: `uv run python -m src.scrapers.instagram`.
+Returns Copenhagen apartment posts with captions + permalinks. Remaining for
+production: App Review (Advanced Access), long-lived token, seen-ID dedup, and
+wiring into the notifier.
 
 **Architecture fit:** Add `src/scrapers/instagram.py`. Note this is an **HTTP API call, not a
 Playwright browser scrape** — it won't use the shared browser instance in
