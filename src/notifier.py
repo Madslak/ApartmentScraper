@@ -58,12 +58,16 @@ async def _send(token: str, chat_id: str, listings: list[dict]) -> None:
     header = f"*Apartment Scout* — {count} ny{plural} bolig{plural} fundet!"
     await bot.send_message(chat_id=chat_id, text=header, parse_mode="Markdown")
 
+    # Source codes keep callback_data within Telegram's 64-byte limit.
+    # IDs are address slugs up to 48 chars; full source names push past the cap.
+    _SRC = {"boligsiden": "b", "nybolig": "n", "home": "h", "edc": "e", "danbolig": "d"}
+
     for i, listing in enumerate(listings[:MAX_LISTINGS_PER_MESSAGE], start=1):
         lid = listing["id"]
-        src = listing.get("source", "boligsiden")
+        sc = _SRC.get(listing.get("source", "boligsiden"), "b")
         keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton("💾 Gem", callback_data=f"save|{lid}|{src}"),
-            InlineKeyboardButton("❌ Afvis", callback_data=f"dismiss|{lid}|{src}"),
+            InlineKeyboardButton("💾 Gem", callback_data=f"s|{lid}|{sc}"),
+            InlineKeyboardButton("❌ Afvis", callback_data=f"x|{lid}|{sc}"),
         ]])
         await bot.send_message(
             chat_id=chat_id,

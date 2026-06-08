@@ -68,12 +68,16 @@ async def cmd_saved(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+_SRC_DECODE = {"b": "boligsiden", "n": "nybolig", "h": "home", "e": "edc", "d": "danbolig"}
+
+
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     parts = query.data.split("|")
-    action, listing_id, source = parts[0], parts[1], parts[2]
+    action, listing_id, src_code = parts[0], parts[1], parts[2]
+    source = _SRC_DECODE.get(src_code, src_code)
 
-    if action == "save":
+    if action == "s":
         save_listing(listing_id, source)
         await query.answer("✅ Gemt!")
 
@@ -94,8 +98,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         set_outreach_draft(listing_id, source, draft)
 
         keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton("✉️ Brug udkast", callback_data=f"use_draft|{listing_id}|{source}"),
-            InlineKeyboardButton("⏭️ Spring over", callback_data=f"skip_draft|{listing_id}|{source}"),
+            InlineKeyboardButton("✉️ Brug udkast", callback_data=f"u|{listing_id}|{src_code}"),
+            InlineKeyboardButton("⏭️ Spring over", callback_data=f"k|{listing_id}|{src_code}"),
         ]])
         await status_msg.edit_text(
             f"*Udkast til henvendelse:*\n\n{draft}",
@@ -103,12 +107,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             reply_markup=keyboard,
         )
 
-    elif action == "dismiss":
+    elif action == "x":
         dismiss_listing(listing_id, source)
         await query.answer("❌ Afvist")
         await query.edit_message_reply_markup(reply_markup=None)
 
-    elif action == "use_draft":
+    elif action == "u":
         draft = get_outreach_draft(listing_id, source)
         if not draft:
             await query.answer("Intet udkast fundet.")
@@ -119,7 +123,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             parse_mode="Markdown",
         )
 
-    elif action == "skip_draft":
+    elif action == "k":
         await query.answer("⏭️ Udkast kasseret")
         await query.edit_message_reply_markup(reply_markup=None)
 

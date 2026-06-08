@@ -2,6 +2,8 @@
 apartments.db
 scraper.log
 scraper.error.log
+bot.log
+bot.error.log
 __pycache__/
 .ruff_cache/
 .venv/
