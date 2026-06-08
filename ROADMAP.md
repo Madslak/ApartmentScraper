@@ -48,14 +48,72 @@ before any content is fetched.
 - New files: `src/bot.py` (polling bot), `src/contacter.py` (Claude draft)
 - Run bot: `uv run src/bot.py` (separate persistent process from the pipeline)
 
-## Phase 4 — Facebook group scraper
+## Phase 4 — Instagram broker scraper
+
+**Goal:** Watch Copenhagen apartment brokers' Instagram accounts for new posts about
+apartments and surface them through the existing notification pipeline. Start with a POC
+proving feasibility; defer any messaging function (see note below).
+
+**Chosen approach: official Instagram Graph API — Business Discovery** (not third-party scraping).
+
+The Business Discovery endpoint reads another Business/Creator account's media by username:
+
+```
+GET /<MY_IG_USER_ID>
+  ?fields=business_discovery.username(<broker_username>){
+            media{caption,permalink,timestamp,media_type,media_url}
+          }
+```
+
+Returns **caption, permalink, timestamp, media_url** per post — enough to detect new posts,
+text-match for Copenhagen apartments, and dedup by post ID / timestamp.
+
+**Setup requirements (one-time):**
+- Our own Instagram **Business or Creator** account, linked to a Facebook Page
+- A Meta Developer App
+- Permissions: `instagram_basic`, `instagram_manage_insights`, `pages_read_engagement`
+- **App Review (Advanced Access)** to query accounts other than our own dev account
+- Target broker accounts must be Business/Creator accounts (they almost certainly are)
+
+**POC success criteria:**
+1. Authenticate and obtain a long-lived access token
+2. Pull recent media for 2–3 known Copenhagen broker accounts via Business Discovery
+3. Filter posts by caption keywords / neighborhood (reuse `base.py` zip/neighborhood logic)
+4. Confirm we can detect *new* posts since last run (track seen post IDs)
+
+**Architecture fit:** Add `src/scrapers/instagram.py`. Note this is an **HTTP API call, not a
+Playwright browser scrape** — it won't use the shared browser instance in
+`scrapers/__init__.py`, so wire it in as a separate (non-browser) source rather than into
+`_scrape_all_async`'s browser task group.
+
+**Constraints & limitations:**
+- Free and ToS-compliant, but App Review adds setup overhead vs. a quick scrape
+- Only works against Business/Creator targets
+- Hashtag search (`/<hashtag_id>/recent_media`) is an alternative but weak: public posts only,
+  24h window, max 30 hashtags / 7 days, and the `username` field is unavailable — so we can't
+  attribute posts to brokers. Per-account Business Discovery is the better fit.
+
+**Deferred — messaging function (do NOT build in this phase):**
+The official Instagram Messaging API **cannot cold-DM brokers**. A message can only be sent
+*after the broker messages us first*, within a 24-hour reply window. An automated outreach DM
+is therefore impossible via the API. Open question for a later phase: mirror the Phase 3
+Telegram pattern (Claude **drafts** a Danish DM for manual copy-paste) if outreach is wanted.
+
+**Rejected alternative — third-party Apify scrapers:**
+The gathered skills.sh links (`apidojo-io/instagram-scraper`, `serpdownloaders`, etc.) are all
+**Apify actors**: no IG login needed, scrape public profiles directly, return posts/captions.
+But they require a paid Apify plan (per-run cost), violate Instagram ToS, and break when IG
+changes its frontend — unacceptable for a 24/7 pipeline. Useful only as a throwaway feasibility
+check; the official API is the foundation we build on.
+
+## Phase 5 — Facebook group scraper
 
 - Scrape Copenhagen apartment Facebook groups (e.g. "Andelsboliger til salg")
 - Requires injecting login session cookies into Playwright
 - Partially fills the "skuffesalg" gap — private deals that never reach any portal
 - Add `src/scrapers/facebook.py` — fits the existing multi-source architecture
 
-## Phase 5 — Reliability & hosting
+## Phase 6 — Reliability & hosting
 
 - Migrate the scheduled pipeline from macOS launchd to a Hetzner VPS (~€5/month)
 - Runs 24/7 independently of the laptop being on or awake
