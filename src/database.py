@@ -31,6 +31,7 @@ DEFAULT_CONFIG = {
         "Indre By": 0.85,
         "Vesterbro": 0.80,
         "Østerbro": 0.75,
+        "Nordvest": 0.80,
         "Amager": 0.65,
         "Valby": 0.58,
         "Other": 0.50,

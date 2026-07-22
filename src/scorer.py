@@ -30,7 +30,9 @@ NEIGHBORHOOD_ALIASES: dict[str, str] = {
     "vanløse": "Other",
     "brønshøj": "Other",
     "bispebjerg": "Other",
-    "nordvest": "Other",
+    "nordvest": "Nordvest",
+    "københavn nv": "Nordvest",
+    "kbh nv": "Nordvest",
 }
 
 
