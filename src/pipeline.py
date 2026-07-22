@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent / ".env")
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 from database import init_db, mark_notified, upsert_listing, get_unsent_listings
 from notifier import send_listings

@@ -8,6 +8,7 @@ NEIGHBORHOOD_ZIPS: dict[str, list[int]] = {
     "Indre By":      [1050, 1100, 1150, 1200, 1250, 1300, 1350, 1400, 1450],
     "Vesterbro":     [1500, 1550, 1600, 1620, 1650, 1700, 1750, 1800],
     "Østerbro":      [2100],
+    "Nordvest":      [2400],
     "Amager":        [2300, 2450],
     "Valby":         [2500],
 }
