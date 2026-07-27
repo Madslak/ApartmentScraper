@@ -12,7 +12,7 @@ from pathlib import Path
 DB_PATH = Path(__file__).parent / "apartments.db"
 
 DEFAULT_CONFIG = {
-    "price_max": 4000000,
+    "price_max": 3500000,
     "price_leniency": 15,
     "price_hard": False,
     "size_min": 50,
@@ -27,11 +27,12 @@ DEFAULT_CONFIG = {
     },
     "neighborhood_multipliers": {
         "Nørrebro": 1.00,
-        "Frederiksberg": 0.92,
+        "Frederiksberg": 0.90,
         "Indre By": 0.85,
         "Vesterbro": 0.80,
         "Østerbro": 0.75,
-        "Amager": 0.65,
+        "Nordvest": 0.80,
+        "Amager": 0.60,
         "Valby": 0.58,
         "Other": 0.50,
     },
