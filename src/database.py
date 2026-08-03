@@ -12,10 +12,10 @@ from pathlib import Path
 DB_PATH = Path(__file__).parent / "apartments.db"
 
 DEFAULT_CONFIG = {
-    "price_max": 3500000,
+    "price_max": 3000000,
     "price_leniency": 15,
     "price_hard": False,
-    "size_min": 50,
+    "size_min": 40,
     "size_leniency": 10,
     "size_hard": False,
     "rooms_min": 2,
