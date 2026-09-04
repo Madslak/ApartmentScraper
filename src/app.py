@@ -139,9 +139,8 @@ else:
     st.metric("Listings shown", len(df))
 
     def row_color(row):
-        if row["is_soft_match"]:
-            return ["background-color: #fff3cd"] * len(row)
-        return [""] * len(row)
+        color = "background-color: #fff3cd" if df.loc[row.name, "is_soft_match"] else ""
+        return [color] * len(row)
 
     display_cols = ["source", "title", "price", "size", "rooms", "neighborhood", "score", "address", "first_seen"]
     df_display = df[display_cols].copy()
@@ -149,10 +148,7 @@ else:
     df_display["score"] = df_display["score"].apply(lambda x: f"{x:.2f}")
     df_display["first_seen"] = pd.to_datetime(df_display["first_seen"]).dt.strftime("%d/%m %H:%M")
 
-    styled = df_display.style.apply(
-        lambda row: row_color(df.loc[row.name]),
-        axis=1,
-    )
+    styled = df_display.style.apply(row_color, axis=1)
     st.dataframe(styled, use_container_width=True, hide_index=True)
 
     st.divider()

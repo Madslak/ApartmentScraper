@@ -10,6 +10,7 @@ Run manually: `uv run src/pipeline.py`
 import socket
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -54,7 +55,8 @@ def wait_for_network(timeout: int = 300, interval: int = 10) -> bool:
 
 def run() -> None:
     """Execute the full scrape → score → save → notify pipeline."""
-    print("=== Apartment Scout pipeline starting ===")
+    started = datetime.now().astimezone()
+    print(f"=== Apartment Scout pipeline starting {started:%Y-%m-%d %H:%M:%S %Z} ===")
 
     print("Waiting for network...")
     if not wait_for_network():
@@ -83,7 +85,9 @@ def run() -> None:
     if new_listings:
         mark_notified([(listing["id"], listing["source"]) for listing in new_listings])
 
-    print("=== Pipeline complete ===")
+    finished = datetime.now().astimezone()
+    elapsed = int((finished - started).total_seconds())
+    print(f"=== Pipeline complete {finished:%Y-%m-%d %H:%M:%S %Z} ({elapsed}s) ===")
 
 
 if __name__ == "__main__":
