@@ -74,6 +74,19 @@ _OUTREACH_DRAFTS_SCHEMA = """
     )
 """
 
+# Seen Instagram media IDs, so new-post detection surfaces each post only once.
+# Kept separate from `listings` because IG posts have no price/size/rooms yet —
+# wiring them into the listing/notifier shape is a later task.
+_INSTAGRAM_SEEN_SCHEMA = """
+    CREATE TABLE IF NOT EXISTS instagram_seen (
+        post_id TEXT PRIMARY KEY,
+        broker TEXT,
+        permalink TEXT,
+        timestamp TEXT,
+        first_seen TEXT
+    )
+"""
+
 
 def get_connection() -> sqlite3.Connection:
     """Return a SQLite connection to the project database."""
@@ -128,6 +141,7 @@ def init_db() -> None:
             )
         """)
         conn.execute(_OUTREACH_DRAFTS_SCHEMA)
+        conn.execute(_INSTAGRAM_SEEN_SCHEMA)
         for key, value in DEFAULT_CONFIG.items():
             conn.execute(
                 "INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)",
@@ -312,3 +326,42 @@ def get_outreach_draft(listing_id: str, source: str) -> str | None:
             (listing_id, source),
         ).fetchone()
     return row[0] if row else None
+
+
+def get_seen_instagram_ids() -> set[str]:
+    """Return the set of Instagram media IDs recorded as seen on a prior run.
+
+    The Instagram scraper filters its results against this set so only new posts
+    are surfaced. Creates the table on demand so the standalone POC
+    (`python -m src.scrapers.instagram`) works without a full ``init_db()``.
+    """
+    with get_connection() as conn:
+        conn.execute(_INSTAGRAM_SEEN_SCHEMA)
+        rows = conn.execute("SELECT post_id FROM instagram_seen").fetchall()
+    return {row[0] for row in rows}
+
+
+def mark_instagram_seen(posts: list[dict]) -> None:
+    """Record Instagram posts as seen so later runs skip them.
+
+    Call this only after the posts have been handled (e.g. notified), mirroring
+    the ``notified`` flag on listings: a post stays "new" until it is confirmed
+    processed, so a downstream failure never loses it. Each post uses the
+    scraper's dict shape ({id, broker, url, timestamp, ...}); duplicates are
+    ignored, so calling it twice is safe.
+    """
+    if not posts:
+        return
+    now = datetime.now().isoformat()
+    with get_connection() as conn:
+        conn.execute(_INSTAGRAM_SEEN_SCHEMA)
+        conn.executemany(
+            """INSERT OR IGNORE INTO instagram_seen
+                   (post_id, broker, permalink, timestamp, first_seen)
+               VALUES (?, ?, ?, ?, ?)""",
+            [
+                (p["id"], p.get("broker"), p.get("url"), p.get("timestamp"), now)
+                for p in posts
+            ],
+        )
+        conn.commit()
