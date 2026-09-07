@@ -1,0 +1,23 @@
+# Apartment Scout — VPS crontab (replaces macOS launchd).
+#
+# This is a REFERENCE template. deploy/setup.sh renders the real crontab by
+# substituting __APP_DIR__ with the actual deploy path and installs it with
+# `crontab -`. To edit by hand: `crontab -e` and paste the rendered lines.
+#
+# CRON_TZ pins the schedule to Copenhagen local time regardless of the server's
+# system clock. setup.sh also sets the system timezone to Europe/Copenhagen so
+# log timestamps and Telegram message times match.
+#
+# setup.sh replaces everything between the two APARTMENT-SCOUT markers, so your
+# other crontab lines are left untouched. Keep the markers if editing by hand.
+# >>> APARTMENT-SCOUT >>>
+CRON_TZ=Europe/Copenhagen
+
+# Daily scrape -> score -> notify at 09:00 Copenhagen time.
+0 9 * * * __APP_DIR__/deploy/run-pipeline.sh >> __APP_DIR__/scraper.log 2>> __APP_DIR__/scraper.error.log
+
+# Interactive Telegram bot, 09:00–10:00 (BOT_RUN_MINUTES=60, set in run-bot.sh).
+# Mirrors the old launchd bot job. For 24/7 buttons use systemd instead — see
+# docs/hetzner-setup.md. Comment this line out if you run the bot as a service.
+0 9 * * * BOT_RUN_MINUTES=60 __APP_DIR__/deploy/run-bot.sh >> __APP_DIR__/bot.log 2>> __APP_DIR__/bot.error.log
+# <<< APARTMENT-SCOUT <<<

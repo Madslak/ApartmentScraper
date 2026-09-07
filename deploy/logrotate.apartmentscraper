@@ -1,0 +1,14 @@
+# Log rotation for Apartment Scout on the VPS.
+#
+# REFERENCE template — setup.sh renders __APP_DIR__ and installs it to
+# /etc/logrotate.d/apartmentscraper. Prevents the append-only cron logs from
+# growing unbounded (bot.error.log had already reached ~2.7 MB on the laptop).
+__APP_DIR__/scraper.log __APP_DIR__/scraper.error.log __APP_DIR__/bot.log __APP_DIR__/bot.error.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}
