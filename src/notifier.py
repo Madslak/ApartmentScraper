@@ -16,6 +16,7 @@ from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 load_dotenv()
 
 MAX_LISTINGS_PER_MESSAGE = 10
+MAX_INSTAGRAM_POSTS_PER_MESSAGE = 10
 
 
 def format_listing(listing: dict, rank: int) -> str:
@@ -82,6 +83,59 @@ def send_listings(listings: list[dict]) -> None:
     token = os.environ["TELEGRAM_BOT_TOKEN"]
     chat_id = os.environ["TELEGRAM_CHAT_ID"]
     asyncio.run(_send(token, chat_id, listings))
+
+
+def format_instagram_post(post: dict) -> str:
+    """Format a single Instagram broker post as a plain-text Telegram message.
+
+    Sent WITHOUT Markdown parse_mode: IG captions are user-generated and routinely
+    contain characters (`_`, `*`, `[`) that break Telegram's Markdown parser and
+    would fail the whole send. Plain text is safe; Telegram still auto-links the
+    permalink URL.
+    """
+    caption = " ".join((post.get("caption") or "").split())
+    if len(caption) > 300:
+        caption = caption[:300].rstrip() + "\u2026"
+    date = (post.get("timestamp") or "")[:10]
+    broker = post.get("broker", "")
+    head = f"\U0001f4f8 @{broker}" + (f"  \u00b7 {date}" if date else "")
+    body = f"{head}\n{caption}" if caption else head
+    return f"{body}\n\U0001f517 {post.get('url')}"
+
+
+async def _send_instagram(token: str, chat_id: str, posts: list[dict]) -> None:
+    """Send a header + one plain-text message per Instagram post."""
+    bot = Bot(token=token)
+    count = len(posts)
+    if count == 1:
+        header = "*Apartment Scout* \u2014 1 nyt Instagram-opslag fra en m\u00e6gler"
+    else:
+        header = f"*Apartment Scout* \u2014 {count} nye Instagram-opslag fra m\u00e6glere"
+    await bot.send_message(chat_id=chat_id, text=header, parse_mode="Markdown")
+    for post in posts:
+        await bot.send_message(
+            chat_id=chat_id,
+            text=format_instagram_post(post),
+            disable_web_page_preview=False,
+        )
+
+
+def send_instagram_posts(posts: list[dict]) -> list[dict]:
+    """Send new Instagram broker posts to Telegram; return the posts actually sent.
+
+    Sends nothing (and returns []) when there are no posts, so the daily run stays
+    quiet on days with no broker activity. Caps the batch at
+    MAX_INSTAGRAM_POSTS_PER_MESSAGE and returns exactly the sent slice, so the
+    caller marks only those as seen and the overflow surfaces on the next run
+    instead of being silently dropped.
+    """
+    if not posts:
+        return []
+    token = os.environ["TELEGRAM_BOT_TOKEN"]
+    chat_id = os.environ["TELEGRAM_CHAT_ID"]
+    to_send = posts[:MAX_INSTAGRAM_POSTS_PER_MESSAGE]
+    asyncio.run(_send_instagram(token, chat_id, to_send))
+    return to_send
 
 
 if __name__ == "__main__":
