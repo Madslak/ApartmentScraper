@@ -23,7 +23,7 @@ set -euo pipefail
 
 # --- Config (override via environment) --------------------------------------
 TZ_NAME="${TZ_NAME:-Europe/Copenhagen}"
-BRANCH="${BRANCH:-main}"
+BRANCH="${BRANCH:-master}"
 REPO_URL="${REPO_URL:-}"
 
 # Resolve APP_DIR: if this script lives inside a checkout, use that checkout;
