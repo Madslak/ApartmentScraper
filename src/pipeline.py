@@ -19,10 +19,16 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-from database import init_db, mark_notified, upsert_listing, get_unsent_listings
-from notifier import send_listings
+from database import (
+    init_db,
+    mark_instagram_seen,
+    mark_notified,
+    upsert_listing,
+    get_unsent_listings,
+)
+from notifier import send_instagram_posts, send_listings
 from scorer import score_and_filter
-from scrapers import scrape_all
+from scrapers import instagram, scrape_all
 
 
 def wait_for_network(timeout: int = 300, interval: int = 10) -> bool:
@@ -84,6 +90,20 @@ def run() -> None:
 
     if new_listings:
         mark_notified([(listing["id"], listing["source"]) for listing in new_listings])
+
+    # Instagram broker posts ride a separate rail: they have no price/size/rooms,
+    # so they skip the scorer and the `listings` table, and are deduped via the
+    # `instagram_seen` store instead. Best-effort — an expired token or API error
+    # must never abort the apartment run, so the whole step is guarded.
+    print("Checking Instagram brokers...")
+    try:
+        ig_posts = instagram.new_posts()
+        print(f"  {len(ig_posts)} new Instagram post(s) to notify")
+        sent = send_instagram_posts(ig_posts)
+        if sent:
+            mark_instagram_seen(sent)  # mark only after a successful send
+    except Exception as exc:
+        print(f"  Instagram step skipped ({type(exc).__name__}): {exc}")
 
     finished = datetime.now().astimezone()
     elapsed = int((finished - started).total_seconds())
