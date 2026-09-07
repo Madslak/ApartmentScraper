@@ -149,3 +149,15 @@ it loads posts without hitting a login wall
 - Runs 24/7 independently of the laptop being on or awake
 - Add a cron job on the VPS instead of launchd
 
+**Status (2026-09-07): deploy tooling ready; VPS not yet provisioned.**
+Added `deploy/` (idempotent `setup.sh`, self-locating `run-pipeline.sh` /
+`run-bot.sh` cron wrappers, `crontab` template, `logrotate` policy,
+`.env.example`) and `docs/hetzner-setup.md` (full runbook). Cron replaces
+launchd; schedule pinned to `Europe/Copenhagen` (system TZ + `CRON_TZ`). The
+macOS-only `caffeinate` / wait-for-network quirks are dropped on the VPS. No
+app code changed. **Remaining (human):** create the Hetzner server + SSH key,
+put secrets in `.env`, run `deploy/setup.sh`, verify the 09:00 run. **Open:**
+bot runs a 60-min cron window (mirrors old launchd) — switch to the documented
+systemd service for 24/7 buttons; decide whether to delete the `launchd/`
+files once the VPS is confirmed.
+

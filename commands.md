@@ -43,7 +43,28 @@ uv run python -c "import sys; sys.path.insert(0, 'src'); from database import DE
 
 ---
 
-## launchd (scheduled job)
+## VPS (cron — production)
+
+The pipeline runs on a Hetzner VPS via cron. Full runbook:
+`docs/hetzner-setup.md`.
+
+```bash
+# One-time / update provisioning on the VPS (idempotent)
+deploy/setup.sh
+
+# Run the pipeline manually (what cron calls)
+deploy/run-pipeline.sh
+
+# Show installed cron jobs
+crontab -l
+
+# Watch the last/next scheduled run
+tail -f scraper.log scraper.error.log
+```
+
+---
+
+## launchd (scheduled job — legacy macOS path)
 
 ```bash
 # Check the job is registered (shows "- 0 com.apartmentscraper" when healthy)
