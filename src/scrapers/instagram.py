@@ -97,12 +97,48 @@ def scrape(brokers: list[str] | None = None, limit: int = 10) -> list[dict]:
     return listings
 
 
+def _seen_ids() -> set[str]:
+    """Load already-seen media IDs from the DB (lazy import to avoid coupling).
+
+    The import path differs between running as ``python -m src.scrapers.instagram``
+    (``src`` package) and being imported by the pipeline (``src`` on ``sys.path``),
+    so try the package-relative form first and fall back to the flat one.
+    """
+    try:
+        from ..database import get_seen_instagram_ids
+    except ImportError:
+        from database import get_seen_instagram_ids
+    return get_seen_instagram_ids()
+
+
+def new_posts(brokers: list[str] | None = None, limit: int = 10) -> list[dict]:
+    """Return only the Copenhagen posts not seen on a prior run.
+
+    Scrapes via ``scrape()`` then drops any post whose IG media ``id`` is already
+    in the seen-ID store, so repeat runs surface each post exactly once. This does
+    NOT mark the returned posts as seen — the caller records them via
+    ``database.mark_instagram_seen()`` only after they've been handled, so a
+    downstream failure never silently loses a post (mirrors the notified flag).
+    """
+    seen = _seen_ids()
+    return [post for post in scrape(brokers, limit) if post["id"] not in seen]
+
+
 if __name__ == "__main__":
-    # POC: print Copenhagen-relevant broker posts found right now.
-    results = scrape()
-    print(f"Found {len(results)} Copenhagen-relevant broker posts:\n")
+    # POC: print only NEW Copenhagen-relevant broker posts, then mark them seen
+    # so a re-run demonstrates the dedup (it will show 0 until brokers post again).
+    try:
+        from ..database import mark_instagram_seen
+    except ImportError:
+        from database import mark_instagram_seen
+
+    results = new_posts()
+    print(f"Found {len(results)} NEW Copenhagen-relevant broker posts:\n")
     for r in results:
         cap = r["caption"].replace("\n", " ")[:90]
         print(f"[{r['timestamp'][:10]}] @{r['broker']}  {r['media_type']}")
         print(f"  {cap}")
         print(f"  {r['url']}\n")
+
+    mark_instagram_seen(results)
+    print(f"Marked {len(results)} post(s) as seen — re-running shows only newer posts.")
